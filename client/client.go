@@ -69,11 +69,6 @@ func NewClient(authorizationStateHandler AuthorizationStateHandler, options ...O
 	go client.receive()
 	go client.catch(catchersListener)
 
-	err := Authorize(client, authorizationStateHandler)
-	if err != nil {
-		return nil, err
-	}
-
 	return client, nil
 }
 
@@ -113,6 +108,10 @@ func (client *Client) catch(updates chan *Response) {
 			}
 		}
 	}
+}
+
+func (client *Client) Auth(authHandler AuthorizationStateHandler) error {
+	return Authorize(client, authHandler)
 }
 
 func (client *Client) Send(req Request) (*Response, error) {

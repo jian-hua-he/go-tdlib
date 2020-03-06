@@ -42,7 +42,7 @@ func Authorize(client *Client, authorizationStateHandler AuthorizationStateHandl
 	}
 }
 
-type clientAuthorizer struct {
+type ClientAuthorizer struct {
 	TdlibParameters chan *TdlibParameters
 	PhoneNumber     chan string
 	Code            chan string
@@ -50,8 +50,8 @@ type clientAuthorizer struct {
 	Password        chan string
 }
 
-func ClientAuthorizer() *clientAuthorizer {
-	return &clientAuthorizer{
+func ClientAuthorizer() *ClientAuthorizer {
+	return &ClientAuthorizer{
 		TdlibParameters: make(chan *TdlibParameters, 1),
 		PhoneNumber:     make(chan string, 1),
 		Code:            make(chan string, 1),
@@ -60,7 +60,7 @@ func ClientAuthorizer() *clientAuthorizer {
 	}
 }
 
-func (stateHandler *clientAuthorizer) Handle(client *Client, state AuthorizationState) error {
+func (stateHandler *ClientAuthorizer) Handle(client *Client, state AuthorizationState) error {
 	stateHandler.State <- state
 
 	switch state.AuthorizationStateType() {
@@ -116,7 +116,7 @@ func (stateHandler *clientAuthorizer) Handle(client *Client, state Authorization
 	return ErrNotSupportedAuthorizationState
 }
 
-func (stateHandler *clientAuthorizer) Close() {
+func (stateHandler *ClientAuthorizer) Close() {
 	close(stateHandler.TdlibParameters)
 	close(stateHandler.PhoneNumber)
 	close(stateHandler.Code)
@@ -124,7 +124,7 @@ func (stateHandler *clientAuthorizer) Close() {
 	close(stateHandler.Password)
 }
 
-func CliInteractor(clientAuthorizer *clientAuthorizer) {
+func CliInteractor(clientAuthorizer *ClientAuthorizer) {
 	for {
 		select {
 		case state, ok := <-clientAuthorizer.State:
