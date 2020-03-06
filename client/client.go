@@ -48,7 +48,7 @@ func WithLogVerbosity(req *SetLogVerbosityLevelRequest) Option {
 	}
 }
 
-func NewClient(authorizationStateHandler AuthorizationStateHandler, options ...Option) (*Client, error) {
+func NewClient(options ...Option) (*Client, error) {
 	catchersListener := make(chan *Response, 1000)
 
 	client := &Client{
