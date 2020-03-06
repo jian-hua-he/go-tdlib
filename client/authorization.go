@@ -50,7 +50,7 @@ type ClientAuthorizer struct {
 	Password        chan string
 }
 
-func ClientAuthorizer() *ClientAuthorizer {
+func NewClientAuthorizer() *ClientAuthorizer {
 	return &ClientAuthorizer{
 		TdlibParameters: make(chan *TdlibParameters, 1),
 		PhoneNumber:     make(chan string, 1),
