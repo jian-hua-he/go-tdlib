@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -110,8 +111,8 @@ func (client *Client) catch(updates chan *Response) {
 	}
 }
 
-func (client *Client) Auth(authHandler AuthorizationStateHandler) error {
-	return Authorize(client, authHandler)
+func (client *Client) Auth(authHandler AuthorizationStateHandler, ctx context.Context) error {
+	return Authorize(client, authHandler, ctx)
 }
 
 func (client *Client) Send(req Request) (*Response, error) {

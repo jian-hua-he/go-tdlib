@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -13,31 +14,37 @@ type AuthorizationStateHandler interface {
 	Close()
 }
 
-func Authorize(client *Client, authorizationStateHandler AuthorizationStateHandler) error {
+func Authorize(client *Client, authorizationStateHandler AuthorizationStateHandler, ctx context.Context) error {
 	defer authorizationStateHandler.Close()
 
 	var authorizationError error
 
 	for {
-		state, err := client.GetAuthorizationState()
-		if err != nil {
-			return err
-		}
+		select {
+		case <-ctx.Done():
+			return errors.New("init client timeout")
 
-		if state.AuthorizationStateType() == TypeAuthorizationStateClosed {
-			return authorizationError
-		}
+		default:
+			state, err := client.GetAuthorizationState()
+			if err != nil {
+				return err
+			}
 
-		if state.AuthorizationStateType() == TypeAuthorizationStateReady {
-			// dirty hack for db flush after authorization
-			time.Sleep(1 * time.Second)
-			return nil
-		}
+			if state.AuthorizationStateType() == TypeAuthorizationStateClosed {
+				return authorizationError
+			}
 
-		err = authorizationStateHandler.Handle(client, state)
-		if err != nil {
-			authorizationError = err
-			client.Close()
+			if state.AuthorizationStateType() == TypeAuthorizationStateReady {
+				// dirty hack for db flush after authorization
+				time.Sleep(1 * time.Second)
+				return nil
+			}
+
+			err = authorizationStateHandler.Handle(client, state)
+			if err != nil {
+				authorizationError = err
+				client.Close()
+			}
 		}
 	}
 }
