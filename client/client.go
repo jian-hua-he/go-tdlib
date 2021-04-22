@@ -111,8 +111,8 @@ func (client *Client) catch(updates chan *Response) {
 	}
 }
 
-func (client *Client) Auth(authHandler AuthorizationStateHandler, ctx context.Context) error {
-	return Authorize(client, authHandler, ctx)
+func (client *Client) Auth(ctx context.Context, authHandler AuthorizationStateHandler) error {
+	return Authorize(ctx, client, authHandler)
 }
 
 func (client *Client) Send(req Request) (*Response, error) {

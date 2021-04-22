@@ -14,37 +14,46 @@ type AuthorizationStateHandler interface {
 	Close()
 }
 
-func Authorize(client *Client, authorizationStateHandler AuthorizationStateHandler, ctx context.Context) error {
+func Authorize(ctx context.Context, client *Client, authorizationStateHandler AuthorizationStateHandler) error {
 	defer authorizationStateHandler.Close()
 
-	var authorizationError error
+	done := make(chan struct{})
+	authorizationError := make(chan error)
+	go func() {
+		state, err := client.GetAuthorizationState()
+		if err != nil {
+			authorizationError <- err
+			return
+		}
+
+		if state.AuthorizationStateType() == TypeAuthorizationStateClosed {
+			authorizationError <- fmt.Errorf("authorization state closed")
+			return
+		}
+
+		if state.AuthorizationStateType() == TypeAuthorizationStateReady {
+			// dirty hack for db flush after authorization
+			time.Sleep(1 * time.Second)
+			done <- struct{}{}
+			return
+		}
+
+		err = authorizationStateHandler.Handle(client, state)
+		if err != nil {
+			authorizationError <- err
+			client.Close()
+			return
+		}
+	}()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return errors.New("init client timeout")
-
-		default:
-			state, err := client.GetAuthorizationState()
-			if err != nil {
-				return err
-			}
-
-			if state.AuthorizationStateType() == TypeAuthorizationStateClosed {
-				return authorizationError
-			}
-
-			if state.AuthorizationStateType() == TypeAuthorizationStateReady {
-				// dirty hack for db flush after authorization
-				time.Sleep(1 * time.Second)
-				return nil
-			}
-
-			err = authorizationStateHandler.Handle(client, state)
-			if err != nil {
-				authorizationError = err
-				client.Close()
-			}
+		case err := <-authorizationError:
+			return err
+		case <-done:
+			return nil
 		}
 	}
 }
