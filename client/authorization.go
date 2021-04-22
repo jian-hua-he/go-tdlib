@@ -18,6 +18,8 @@ func Authorize(ctx context.Context, client *Client, authorizationStateHandler Au
 	done := make(chan struct{})
 	authorizationErrorChan := make(chan error)
 	go func() {
+		defer authorizationStateHandler.Close()
+
 		var authorizationError error
 		for {
 			state, err := client.GetAuthorizationState()
