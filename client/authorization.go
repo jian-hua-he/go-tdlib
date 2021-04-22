@@ -18,31 +18,30 @@ func Authorize(ctx context.Context, client *Client, authorizationStateHandler Au
 	defer authorizationStateHandler.Close()
 
 	done := make(chan struct{})
-	authorizationError := make(chan error)
+	authorizationErrorChan := make(chan error)
 	go func() {
-		state, err := client.GetAuthorizationState()
-		if err != nil {
-			authorizationError <- err
-			return
-		}
-
-		if state.AuthorizationStateType() == TypeAuthorizationStateClosed {
-			authorizationError <- fmt.Errorf("authorization state closed")
-			return
-		}
-
-		if state.AuthorizationStateType() == TypeAuthorizationStateReady {
-			// dirty hack for db flush after authorization
-			time.Sleep(1 * time.Second)
-			done <- struct{}{}
-			return
-		}
-
-		err = authorizationStateHandler.Handle(client, state)
-		if err != nil {
-			authorizationError <- err
-			client.Close()
-			return
+		var authorizationError error
+		for {
+			state, err := client.GetAuthorizationState()
+			if err != nil {
+				authorizationErrorChan <- err
+				return
+			}
+			if state.AuthorizationStateType() == TypeAuthorizationStateClosed {
+				authorizationErrorChan <- authorizationError
+				return
+			}
+			if state.AuthorizationStateType() == TypeAuthorizationStateReady {
+				// dirty hack for db flush after authorization
+				time.Sleep(1 * time.Second)
+				done <- struct{}{}
+				return
+			}
+			err = authorizationStateHandler.Handle(client, state)
+			if err != nil {
+				authorizationError = err
+				client.Close()
+			}
 		}
 	}()
 
@@ -50,7 +49,7 @@ func Authorize(ctx context.Context, client *Client, authorizationStateHandler Au
 		select {
 		case <-ctx.Done():
 			return errors.New("init client timeout")
-		case err := <-authorizationError:
+		case err := <-authorizationErrorChan:
 			return err
 		case <-done:
 			return nil
