@@ -112,6 +112,7 @@ func (client *Client) catch(updates chan *Response) {
 }
 
 func (client *Client) Auth(ctx context.Context, authHandler AuthorizationStateHandler) error {
+	defer authHandler.Close()
 	return Authorize(ctx, client, authHandler)
 }
 

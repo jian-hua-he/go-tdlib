@@ -15,8 +15,6 @@ type AuthorizationStateHandler interface {
 }
 
 func Authorize(ctx context.Context, client *Client, authorizationStateHandler AuthorizationStateHandler) error {
-	defer authorizationStateHandler.Close()
-
 	done := make(chan struct{})
 	authorizationErrorChan := make(chan error)
 	go func() {
@@ -45,15 +43,13 @@ func Authorize(ctx context.Context, client *Client, authorizationStateHandler Au
 		}
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return errors.New("init client timeout")
-		case err := <-authorizationErrorChan:
-			return err
-		case <-done:
-			return nil
-		}
+	select {
+	case <-ctx.Done():
+		return errors.New("init client timeout")
+	case err := <-authorizationErrorChan:
+		return err
+	case <-done:
+		return nil
 	}
 }
 
