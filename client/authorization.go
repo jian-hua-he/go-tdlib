@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-var ErrNotSupportedAuthorizationState = errors.New("not supported state")
+var (
+	ErrNotSupportedAuthorizationState = errors.New("not supported state")
+	ErrAuthorizationLoggingOut        = errors.New("authorization logging out")
+)
 
 type AuthorizationStateHandler interface {
 	Handle(client *Client, state AuthorizationState) error
@@ -27,7 +30,8 @@ func Authorize(ctx context.Context, client *Client, authorizationStateHandler Au
 				authorizationErrorChan <- err
 				return
 			}
-			if state.AuthorizationStateType() == TypeAuthorizationStateClosed {
+			if state.AuthorizationStateType() == TypeAuthorizationStateClosed ||
+				state.AuthorizationStateType() == TypeAuthorizationStateLoggingOut {
 				authorizationErrorChan <- authorizationError
 				return
 			}
@@ -40,7 +44,6 @@ func Authorize(ctx context.Context, client *Client, authorizationStateHandler Au
 			err = authorizationStateHandler.Handle(client, state)
 			if err != nil {
 				authorizationError = err
-				client.Close()
 			}
 		}
 	}()
@@ -119,13 +122,13 @@ func (stateHandler *ClientAuthorizer) Handle(client *Client, state Authorization
 		return nil
 
 	case TypeAuthorizationStateLoggingOut:
-		return ErrNotSupportedAuthorizationState
+		return ErrAuthorizationLoggingOut
 
 	case TypeAuthorizationStateClosing:
 		return nil
 
 	case TypeAuthorizationStateClosed:
-		return nil
+		return ErrAuthorizationLoggingOut
 	}
 
 	return ErrNotSupportedAuthorizationState
